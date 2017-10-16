@@ -14,10 +14,16 @@ install.packages('devtools')
 devtools::install_github("strakaps/antidepressants")
 ```
 
-### Bootstrap from the synthetic data
+### Load synthetic data
 
 ``` r
 library(antidepressants)
+data("synthetic")
+```
+
+### Bootstrap and fit glinternet models
+
+``` r
 bootglinternet(B = 10, nLambda = 20)
 ```
 
