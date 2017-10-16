@@ -3,9 +3,6 @@ Supplementary Information for the paper "Identifying patients using antidepressa
 
 This R package contains similar (synthetic) data to the dataset used in the paper, and all R code used in the analysis.
 
-Steps
------
-
 ### Install this package
 
 ``` r
@@ -26,12 +23,15 @@ data("synthetic")
 bootglinternet(B = 10, nLambda = 20)
 ```
 
+### All coefficients of the model fitted to the real dataset
+
+See the file [all\_coefs.md](all_coefs.md) or [all\_coefs.csv](inst/extdata/all_coefs.csv)
+
 ### Reproduce analysis
 
 View the `README.Rmd` file that produces the output below.
 
-Calculating AUC
----------------
+### Calculating AUC
 
 For each value of *λ*, we give the mean value of the AUC (Area under the ROC curve) and its standard deviation:
 
@@ -39,8 +39,7 @@ For each value of *λ*, we give the mean value of the AUC (Area under the ROC cu
 
 The best expected AUC is 0.7030967 and our choice within one standard deviation is 0.6929934.
 
-Sensitivity and Specificity
----------------------------
+### Sensitivity and Specificity
 
 |  threshold|  gold|  positives|   sens|   spec|    ppv|
 |----------:|-----:|----------:|------:|------:|------:|
@@ -61,8 +60,7 @@ Plot ROC curves of 5 bootstrap samples.
 
 ![](README_files/figure-markdown_github/unnamed-chunk-7-1.png)
 
-Bootstrap Percentiles for effects and interactions
---------------------------------------------------
+### Bootstrap Percentiles for effects and interactions
 
 ![](README_files/figure-markdown_github/unnamed-chunk-11-1.png)
 
@@ -83,49 +81,3 @@ Bootstrap Percentiles for effects and interactions
 | amitriptyline   | mirtazapine     |
 | amitriptyline   | reboxetine      |
 | amitriptyline   | comed\_iron     |
-
-### All coefficients printed out
-
-| id                               |   value|     OR|   CIlo|   CIhi|
-|:---------------------------------|-------:|------:|------:|------:|
-| amitriptyline\_0                 |   0.869|  2.384|  1.323|  8.475|
-| intercept                        |   0.435|  1.545|  1.545|  1.545|
-| 0\_amitriptyline\_comed\_iron\_1 |  -0.181|  0.835|  0.894|  1.000|
-| 0\_amitriptyline\_comed\_iron\_0 |   0.181|  1.198|  1.000|  1.119|
-| amitriptyline\_2                 |  -0.135|  0.874|  0.751|  0.923|
-| 1\_amitriptyline\_comed\_iron\_0 |  -0.080|  0.923|  0.947|  1.000|
-| 1\_amitriptyline\_comed\_iron\_1 |   0.080|  1.084|  1.000|  1.056|
-| amitriptyline\_1                 |  -0.078|  0.925|  0.899|  1.005|
-| amitriptyline\_3                 |  -0.070|  0.932|  0.912|  0.993|
-| 2\_amitriptyline\_comed\_iron\_0 |  -0.070|  0.933|  0.956|  1.000|
-| 2\_amitriptyline\_comed\_iron\_1 |   0.070|  1.072|  1.000|  1.046|
-| 0\_amitriptyline\_reboxetine\_1  |  -0.040|  0.961|  0.974|  1.000|
-| 0\_amitriptyline\_reboxetine\_0  |   0.040|  1.041|  1.000|  1.027|
-| 3\_amitriptyline\_comed\_iron\_0 |  -0.031|  0.970|  0.987|  1.000|
-| 3\_amitriptyline\_comed\_iron\_1 |   0.031|  1.031|  1.000|  1.013|
-| age                              |  -0.028|  0.972|  0.970|  0.991|
-| 1\_amitriptyline\_reboxetine\_0  |  -0.018|  0.982|  0.987|  1.000|
-| 1\_amitriptyline\_reboxetine\_1  |   0.018|  1.018|  1.000|  1.013|
-| 2\_amitriptyline\_reboxetine\_0  |  -0.015|  0.985|  0.990|  1.000|
-| 2\_amitriptyline\_reboxetine\_1  |   0.015|  1.015|  1.000|  1.010|
-| 3\_amitriptyline\_reboxetine\_0  |  -0.006|  0.994|  0.997|  1.000|
-| 3\_amitriptyline\_reboxetine\_1  |   0.006|  1.006|  1.000|  1.003|
-| 0\_amitriptyline\_mirtazapine\_0 |   0.005|  1.005|  1.000|  1.135|
-| 0\_amitriptyline\_mirtazapine\_1 |  -0.003|  0.997|  0.939|  1.000|
-| 0\_amitriptyline\_mirtazapine\_2 |  -0.002|  0.998|  0.938|  1.000|
-| comed\_iron\_0                   |   0.002|  1.002|  1.000|  1.002|
-| comed\_iron\_1                   |  -0.002|  0.998|  0.998|  1.000|
-| 1\_amitriptyline\_mirtazapine\_0 |  -0.002|  0.998|  0.945|  1.000|
-| 2\_amitriptyline\_mirtazapine\_0 |  -0.002|  0.998|  0.953|  1.000|
-| 1\_amitriptyline\_mirtazapine\_1 |   0.001|  1.001|  1.000|  1.029|
-| 1\_amitriptyline\_mirtazapine\_2 |   0.001|  1.001|  1.000|  1.029|
-| 2\_amitriptyline\_mirtazapine\_1 |   0.001|  1.001|  1.000|  1.024|
-| 2\_amitriptyline\_mirtazapine\_2 |   0.001|  1.001|  1.000|  1.024|
-| 3\_amitriptyline\_mirtazapine\_0 |  -0.001|  0.999|  0.978|  1.000|
-| 3\_amitriptyline\_mirtazapine\_1 |   0.000|  1.000|  1.000|  1.011|
-| 3\_amitriptyline\_mirtazapine\_2 |   0.000|  1.000|  1.000|  1.011|
-| reboxetine\_0                    |   0.000|  1.000|  1.000|  1.000|
-| reboxetine\_1                    |   0.000|  1.000|  1.000|  1.000|
-| mirtazapine\_1                   |   0.000|  1.000|  0.999|  1.000|
-| mirtazapine\_2                   |   0.000|  1.000|  0.999|  1.001|
-| mirtazapine\_0                   |   0.000|  1.000|  1.000|  1.001|

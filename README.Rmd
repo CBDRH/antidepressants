@@ -12,9 +12,6 @@ output:
 
 This R package contains similar (synthetic) data to the dataset used in the paper, and all R code used in the analysis. 
 
-
-## Steps
-
 ### Install this package
 
 ```{r, eval=FALSE}
@@ -37,11 +34,16 @@ bootglinternet(B = 10, nLambda = 20)
 ```
 
 
+### All coefficients of the model fitted to the real dataset
+
+See the file [all_coefs.md](all_coefs.md) or [all_coefs.csv](inst/extdata/all_coefs.csv)
+
+
 ### Reproduce analysis 
 
 View the `README.Rmd` file that produces the output below. 
 
-## Calculating AUC
+### Calculating AUC
 
 For each value of $\lambda$, we give the mean value of the AUC (Area under the ROC curve) and its standard deviation:
 
@@ -119,7 +121,7 @@ ggplot(data = auc_plot_data, mapping = aes(x,y)) +
 The best expected AUC is `r auc_plot_data$y[i_0]` and our choice within one standard deviation is `r auc_plot_data$y[i_1se]`. 
 
 
-## Sensitivity and Specificity
+### Sensitivity and Specificity
 
 ```{r, include=FALSE}
 log_trans <- function(x) exp(x) / (1+exp(x))
@@ -280,7 +282,7 @@ catcontInterTable <- ldply(all_coefs, function(model) model$catcontInterTable)
 ```
 
 
-## Bootstrap Percentiles for effects and interactions
+### Bootstrap Percentiles for effects and interactions
 
 
 ```{r, include=FALSE}
@@ -460,16 +462,3 @@ knitr::kable(full_model_catcatInter %>%
 )
 ```
 
-
-### All coefficients printed out
-
-```{r, echo=FALSE}
-knitr::kable(full_and_boot_coefs %>%
-    select(id, CIlo, value, CIhi) %>%
-        add_row(id="intercept", value=mean(y), CIlo = mean(y), CIhi = mean(y)) %>%
-        arrange(desc(abs(value))) %>%
-    mutate(OR=round(exp(value),3), CIlo=round(exp(CIlo),3), CIhi=round(exp(CIhi),3), 
-           value=round(value,3)) %>%
-        select(id, value, OR, CIlo, CIhi)
-)
-```
