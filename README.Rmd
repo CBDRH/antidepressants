@@ -1,18 +1,12 @@
 ---
-output:
-  md_document:
-    variant: markdown_github
+title: "Identifying patients using antidepressants for the treatment of depression"
+subtitle: "Supplementary documentation"
+author: Peter Straka
+output: 
+    md_document:
+        variant: markdown_github
+    html_notebook: default
 ---
-
-<!-- README.md is generated from README.Rmd. Please edit that file -->
-
-```{r, echo = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>",
-  fig.path = "README-"
-)
-```
 
 # Supplementary Information for the paper "Identifying patients using antidepressants for the treatment of depression"
 
@@ -30,7 +24,7 @@ devtools::install_github("strakaps/antidepressants")
 
 ### Load synthetic data
 
-```{r, eval=FALSE}
+```{r}
 library(antidepressants)
 data("synthetic")
 ```
@@ -45,5 +39,437 @@ bootglinternet(B = 10, nLambda = 20)
 
 ### Reproduce analysis 
 
-* Download the R Notebook `inst/workflow.nb.html` and view it in a browser
-* Click `Code` in top-right corner, and Download Rmd. 
+View the `README.Rmd` file that produces the output below. 
+
+## Calculating AUC
+
+For each value of $\lambda$, we give the mean value of the AUC (Area under the ROC curve) and its standard deviation:
+
+```{r, include=FALSE}
+# First create a 3D array with dimensions "bootstrap sample" by "nrows" by "nlambda"
+data("glinternet_models")
+make_slice <- function(output_item){
+  yhat <- output_item$yhat
+  bootI <- output_item$bootI
+  oobI <- output_item$oobI
+  slice <- matrix(nrow=n, ncol=nLambda)
+  slice[oobI,] <- yhat
+  return(slice)
+}
+
+n <- length(y)
+B <- length(output)
+nLambda <- length(output[[1]]$model$lambda)
+
+OOBpredictions <- plyr::laply(.data = output, .fun = function(o) make_slice(o))
+
+# Calculate the average AUC per bootstrap sample. 
+
+auc_per_model_per_lambda <- function(OOBpredictions, o, l){ #o and l are the indices of the output matrix
+    oobI <- output[[o]]$oobI
+    ystar <- OOBpredictions[o,output[[o]]$oobI ,l]
+    ystar <- exp(ystar) / (1+exp(ystar)) # not really necessary
+    pROC::roc(response=y[oobI], predictor=ystar)$auc
+}
+
+auc_per_model <- function(o){
+    sapply(1:nLambda,
+           function(l) auc_per_model_per_lambda(OOBpredictions, o, l))
+}
+
+auc_matrix <- parallel::mclapply(1:B, auc_per_model, mc.cores = parallel::detectCores())
+auc_matrix <- plyr::laply(.data = auc_matrix, .fun = function(x) x)
+mean_auc_by_lambda <- apply(auc_matrix, 2, mean)
+sd_auc_by_lambda <- apply(auc_matrix, 2, sd)
+lambdas <- output[[1]]$model$lambda
+which.max(mean_auc_by_lambda) -> i_0
+x_0 <- log(lambdas[i_0])
+target <- mean_auc_by_lambda[i_0] - sd_auc_by_lambda[i_0]
+i_1se <- min(which(mean_auc_by_lambda > target))
+x_1se <- log(lambdas[i_1se])
+
+meanOOBprediction <- apply(X = OOBpredictions, MARGIN = c(2,3), FUN = mean, na.rm=TRUE)
+library(pROC)
+library(plyr)
+ROCs <- alply(.data = meanOOBprediction, .margins = 2, .fun = function(X){
+  p <- exp(X) / (1 + exp(X))
+  roc(response = y, predictor = p, smooth = FALSE)$auc
+})
+OOBerr <- sapply(ROCs, function(item) item )
+
+library(tibble)
+auc_plot_data <- tibble(x=log(output[[1]]$model$lambda),
+                        y=mean_auc_by_lambda,
+                        ymin=mean_auc_by_lambda - sd_auc_by_lambda,
+                        ymax=mean_auc_by_lambda + sd_auc_by_lambda, 
+                        OOBerr=OOBerr)
+```
+
+```{r plotAUC, echo=FALSE}
+library(ggplot2)
+ggplot(data = auc_plot_data, mapping = aes(x,y)) +
+    scale_x_continuous("log(lambda)") +
+    scale_y_continuous("AUC") +
+    geom_vline(xintercept = x_0, lty=2) +
+    geom_vline(xintercept = x_1se, lty=2) +
+    geom_errorbar(aes(ymin=ymin, ymax=ymax)) +
+    geom_point(colour=2) 
+```
+
+The best expected AUC is `r auc_plot_data$y[i_0]` and our choice within one standard deviation is `r auc_plot_data$y[i_1se]`. 
+
+
+## Sensitivity and Specificity
+
+```{r, include=FALSE}
+log_trans <- function(x) exp(x) / (1+exp(x))
+OOBP <- log_trans(OOBpredictions)
+D <- dim(OOBP)
+y_array <- outer(outer(rep(1, D[1]), y), rep(1,D[3]))
+
+TP <- function(ystar, y){ !is.na(ystar) & (ystar & y) }
+TN <- function(ystar, y){ !is.na(ystar) & (!ystar & !y) }
+FN <- function(ystar, y){ !is.na(ystar) & (!ystar & y) }
+FP <- function(ystar, y){ !is.na(ystar) & (ystar & !y) }
+
+thresholds <- 1:9/10
+
+TFPN_matrices <- parallel::mclapply(list(TP, TN, FN, FP), function(TFPN){
+  laply(lapply(thresholds, function(p){
+    apply(TFPN(OOBP > p, y_array), c(1,3), sum)
+    }), function(l) l)
+  })
+names(TFPN_matrices) <- c("TP_counts", "TN_counts", "FN_counts", "FP_counts")
+POS <- TFPN_matrices$TP_counts + TFPN_matrices$FP_counts
+SENS <- TFPN_matrices$TP_counts / (TFPN_matrices$TP_counts + TFPN_matrices$FN_counts)
+SPEC <- TFPN_matrices$TN_counts / (TFPN_matrices$TN_counts + TFPN_matrices$FP_counts)
+PPV <- TFPN_matrices$TP_counts / (TFPN_matrices$TP_counts + TFPN_matrices$FP_counts)
+
+meanPOS <- apply(POS, c(1,3), mean, na.rm=TRUE)
+sdPOS <- apply(POS, c(1,3), mean, na.rm=TRUE)
+meanSENS <- apply(SENS, c(1,3), mean, na.rm=TRUE)
+round(meanSENS[,i_1se], 3)
+sdSENS <- apply(SENS, c(1,3), sd)
+round(sdSENS[,i_1se], 3)
+meanSPEC <- apply(SPEC, c(1,3), mean, na.rm=TRUE)
+round(meanSPEC[,i_1se], 3)
+sdSPEC <- apply(SPEC, c(1,3), sd)
+round(sdSPEC[, i_1se], 3)
+meanPPV <- apply(PPV, c(1,3), mean, na.rm=TRUE)
+round(meanPPV[,i_1se], 3)
+sdPPV <- apply(PPV, c(1,3), sd)
+round(sdPPV[, i_1se], 3)
+```
+
+```{r, echo=FALSE, message=FALSE}
+library(tidyverse)
+knitr::kable(tibble(threshold=thresholds, gold=sum(y), positives=meanPOS[, i_1se], sens=meanSENS[,i_1se], spec=meanSPEC[,i_1se], ppv=meanPPV[,i_1se]) %>%
+    mutate(positives=round(positives,1), sens=round(sens,3), spec=round(spec,3),
+           ppv=round(ppv,3))
+)
+```
+
+## ROC plot
+
+Plot ROC curves of 5 bootstrap samples. 
+
+```{r, echo=FALSE}
+b <- sample(1:D[1],5)
+p <- OOBP[b, ,i_1se]
+bROCs <- alply(p,1,function(X) roc(response = y, predictor = X))
+
+SENS <- llply(bROCs, function(X) X$sensitivities)
+SPEC <- llply(bROCs, function(X) X$specificities)
+
+SensSpecTable <- ldply(1:length(b), function(k){
+    tibble(sensitivity=SENS[[k]], specificity=SPEC[[k]]) %>%
+        add_column(bootID=b[k])
+})
+
+ggplot(data = SensSpecTable, aes(x=1-specificity, y=sensitivity, colour = factor(bootID))) +
+    scale_x_continuous("1 - Specificity") +
+    scale_y_continuous("Sensitivity") +
+    geom_step() + 
+    geom_segment(aes(x = 0, y=0, xend=1, yend=1), lwd=0.1, col='black') +
+    guides(colour=FALSE)
+```
+
+
+```{r, include=FALSE}
+library(plyr)
+library(glinternet) # imports the coef method
+library(parallel)
+library(reshape2)
+library(magrittr)
+library(purrr)
+lambdas <- 1:D[3]
+
+get_catEffTable <- function(coefs){
+    catEffInd <- coefs$mainEffects$cat
+    catEffVal <- coefs$mainEffectsCoef$cat
+    ldply(map2(.x = catEffInd, .y = catEffVal,
+               .f = function(i,jj) tibble(value=jj, level=0:(length(jj)-1),
+                                          effect=i)))
+}
+
+get_contEffTable <- function(coefs){
+    contEffInd <- coefs$mainEffects$cont
+    contEffVal <- coefs$mainEffectsCoef$cont
+    ldply(map2(.x = contEffInd, .y = contEffVal,
+               .f = function(i, jj) tibble(value=jj, effect=i))) 
+}
+
+get_catcatInterTable <- function(coefs){
+    catcatInterInd <- coefs$interactions$catcat
+    catcatInterVal <- coefs$interactionsCoef$catcat
+    if(is.null(catcatInterInd)) return(
+      tibble(effect1=integer(), effect2=integer(), level1=integer(),
+             level2=integer(), value=double()))
+    ldply(1:length(catcatInterVal), function(k){
+            ii <- catcatInterInd[k,]
+            jjj <- catcatInterVal[[k]]
+            dimnames(jjj)[[1]] <- 0:(dim(jjj)[1]-1)
+            dimnames(jjj)[[2]] <- 0:(dim(jjj)[2]-1)
+            melt(jjj, varnames = c("level1", "level2")) %>%
+                add_column(effect1=ii[1], effect2=ii[2])
+        })
+}
+
+get_catcontInterTable <- function(coefs){
+    catcontInterInd <- coefs$interactions$catcont
+    catcontInterVal <- coefs$interactionsCoef$catcont
+    if(is.null(catcontInterInd)) return(
+      tibble(catEff=integer(), contEff=integer(), level=integer(), 
+             value=double())
+    )
+    ldply(1:length(catcontInterVal), function(k){
+        ii <- catcontInterInd[k,]
+        jj <- catcontInterVal[[k]]
+        tibble(value=jj, level=0:(length(jj)-1)) %>%
+            add_column(catEff=ii[1], contEff=ii[2])
+        }) 
+}
+
+all_coefs <- mclapply(output, function(bootOut){
+    coefs <- coef(bootOut$model)
+    catEffTable <- ldply(lambdas, function(lam){
+        get_catEffTable(coefs[[lam]]) %>% 
+            add_column(lambda=lam)
+    })
+    contEffTable <- ldply(lambdas, function(lam){
+        get_contEffTable(coefs[[lam]]) %>%
+            add_column(lambda=lam)
+    })
+    catcatInterTable <- ldply(lambdas, function(lam){
+        get_catcatInterTable(coefs[[lam]]) %>%
+            add_column(lambda=lam)
+    })
+    catcontInterTable <- ldply(lambdas, function(lam){
+        get_catcontInterTable(coefs[[lam]]) %>%
+            add_column(lambda=lam)
+    })
+    return(list(catEffTable=catEffTable, contEffTable=contEffTable,
+                catcatInterTable=catcatInterTable,
+                catcontInterTable=catcontInterTable))
+}, mc.cores = detectCores())
+
+catEffTable <- ldply(all_coefs, function(model) model$catEffTable)
+contEffTable <- ldply(all_coefs, function(model) model$contEffTable)
+catcatInterTable <- ldply(all_coefs, function(model) model$catcatInterTable)
+catcontInterTable <- ldply(all_coefs, function(model) model$catcontInterTable)
+```
+
+
+## Bootstrap Percentiles for effects and interactions
+
+
+```{r, include=FALSE}
+#this function calculates p-quantiles of a vector x, given that there are
+#n additional entries with value 0
+quantile_update <- function(x, n, p) quantile(c(x,integer(n)), p)
+library(plyr)
+library(dplyr)
+# extract largest main effects
+z <- synthetic[ ,!names(synthetic) %in% c('age', 'gold_standard')] # categorical variables
+z$timeonantidepcat <- z[ , "timeonantidepcat"] - 1
+sigEff <- catEffTable %>%
+    filter(lambda==i_1se) %>%
+    group_by(effect, level) %>%
+    summarise(CIlo=quantile_update(value, B-length(value), p=0.05),
+           CIhi=quantile_update(value, B-length(value), p=0.95),
+           mean=sum(value)/B,
+           median=quantile_update(value, B-length(value), p=0.5),
+           Q1=quantile_update(value, B-length(value), p=0.25),
+           Q3=quantile_update(value, B-length(value), p=0.75)) %>%
+    mutate(id=paste(dimnames(z)[[2]][effect], level, sep="_")) %>%
+    arrange(desc(abs(mean)))
+
+sigEff2 <- contEffTable %>%
+    filter(lambda==i_1se) %>%
+    group_by(effect) %>%
+    summarise(CIlo=quantile_update(value, B-length(value), p=0.05),
+           CIhi=quantile_update(value, B-length(value), p=0.95),
+           mean=sum(value)/B,
+           median=quantile_update(value, B-length(value), p=0.5),
+           Q1=quantile_update(value, B-length(value), p=0.25),
+           Q3=quantile_update(value, B-length(value), p=0.75))
+
+# extract largest interactions
+sigInter <- catcatInterTable %>%
+    filter(lambda==i_1se) %>%
+    group_by(lambda, effect1, effect2, level1, level2) %>%
+    summarise(CIlo=quantile_update(value, B-length(value), p=0.05),
+           CIhi=quantile_update(value, B-length(value), p=0.95),
+           mean=sum(value)/B,
+           median=quantile_update(value, B-length(value), p=0.5),
+           Q1=quantile_update(value, B-length(value), p=0.25),
+           Q3=quantile_update(value, B-length(value), p=0.75)) %>%
+    mutate(id=paste(level1, dimnames(z)[[2]][effect1],
+                    dimnames(z)[[2]][effect2], level2, sep="_")) %>%
+    arrange(desc(abs(mean))) %>%
+    mutate(e1=dimnames(z)[[2]][effect1],
+           e2=dimnames(z)[[2]][effect2])
+
+# large cat_cont interactions
+sigInter2 <- catcontInterTable %>%
+    filter(lambda==i_1se) %>%
+    group_by(lambda, catEff, contEff, level) %>%
+    summarise(CIlo=quantile_update(value, B-length(value), p=0.05),
+           CIhi=quantile_update(value, B-length(value), p=0.95),
+           mean=sum(value)/B,
+           median=quantile_update(value, B-length(value), p=0.5),
+           Q1=quantile_update(value, B-length(value), p=0.25),
+           Q3=quantile_update(value, B-length(value), p=0.75)) %>%
+    mutate(id=paste('age', dimnames(z)[[2]][catEff], level, sep='_')) %>%
+    arrange(desc(abs(mean)))
+```
+
+
+
+```{r, include=FALSE}
+### Categorical effects: 
+library(plyr)
+library(dplyr)
+library(purrr)
+library(glinternet)
+coefs <- coef(full_fit)[[i_1se]]
+lambda0 <- full_fit$lambda[i_1se]
+full_model_catEffs <- get_catEffTable(coefs = coefs) %>%
+    group_by(effect, level) %>%
+    mutate(id=paste(dimnames(z)[[2]][effect], level, sep="_")) %>%
+    arrange(desc(abs(value)))
+newSigEff <- sigEff %>%
+    inner_join(y = full_model_catEffs, by = 'id')
+### The continuous effect (age):
+full_model_contEffs <- get_contEffTable(coefs = coefs)
+newSigEff2 <- sigEff2 %>%
+    inner_join(y = full_model_contEffs, by = 'effect')
+### Categorical / categorical interactions: 
+library(reshape2)
+library(tibble)
+full_model_catcatInter <- get_catcatInterTable(coefs = coefs) %>%
+    group_by(effect1, effect2, level1, level2) %>%
+    mutate(id=paste(level1, dimnames(z)[[2]][effect1],
+                    dimnames(z)[[2]][effect2], level2, sep="_")) %>%
+    arrange(desc(abs(value)))
+newSigInter <- sigInter %>%
+    inner_join(y = full_model_catcatInter, by = 'id')
+```
+
+
+```{r, echo=FALSE}
+full_model_all_coefs <- full_model_catEffs %>%
+    ungroup() %>%
+    select(id, value) %>%
+    rbind(
+        full_model_contEffs %>%
+            add_column(id="age") %>%
+            select(id, value)
+    ) %>%
+    rbind(
+        full_model_catcatInter %>%
+            ungroup() %>%
+            select(id, value)
+    )
+
+bootstrap_models_all_coefs <- 
+    sigEff %>%
+    ungroup() %>%
+    select(id, mean, median, Q1, Q3, CIlo, CIhi) %>%
+    rbind(
+        sigEff2 %>% 
+        add_column(id='age') %>%
+            select(id, mean, median, Q1, Q3, CIlo, CIhi) 
+    ) %>%
+    rbind(
+        sigInter %>%
+            filter(lambda == i_1se) %>%
+            ungroup() %>%
+            select(id, mean, median, Q1, Q3, CIlo, CIhi)
+    ) %>%
+    rbind(
+        sigInter2 %>%
+            filter(lambda == i_1se) %>%
+            ungroup() %>%
+            select(id, mean, median, Q1, Q3, CIlo, CIhi)
+    )
+
+full_and_boot_coefs <- 
+    left_join(full_model_all_coefs, bootstrap_models_all_coefs, "id") %>%
+    arrange(desc(abs(value)))
+
+library(ggplot2)
+ggplot(data = full_and_boot_coefs[1:28, ], aes(reorder(id, abs(value)))) +
+    scale_x_discrete("Interactions + Levels") +
+    scale_y_continuous("Effect Size") +
+    coord_flip(ylim = c(-0.25, 0.4)) +
+    geom_linerange(aes(ymin=CIlo, ymax=CIhi), size=0.5, colour='navy') +
+    geom_linerange(aes(ymin=Q1, ymax=Q3), size=1.1, colour='navy') +
+    geom_point(aes(y=median, colour='bootstrap median')) +
+    geom_point(aes(y=value, colour='full data coefficient')) + 
+    geom_hline(aes(yintercept=0), lty=3) +
+    guides(colour = FALSE)
+```
+
+
+
+### Which effects were picked
+
+```{r, echo=FALSE}
+knitr::kable(
+    full_model_catEffs %>%
+    summarise() %>%
+    summarise(num_level=n()) %>%
+    mutate(effect_name = dimnames(z)[[2]][effect]) %>%
+        add_row(effect = 1, num_level=1, effect_name = "age") %>%
+        select(effect_name, num_level)
+)
+```
+
+### Which interactions were picked
+
+```{r, echo=FALSE}
+knitr::kable(full_model_catcatInter %>%
+    summarise() %>%
+    summarise(num_level_2 = n()) %>%
+    summarise(num_level_1 = n(), num_level_2=mean(num_level_2)) %>%
+    mutate(effect_name_1 = dimnames(z)[[2]][effect1], 
+           effect_name_2 = dimnames(z)[[2]][effect2]) %>%
+        ungroup() %>%
+        select(effect_name_1, effect_name_2)
+)
+```
+
+
+### All coefficients printed out
+
+```{r, echo=FALSE}
+knitr::kable(full_and_boot_coefs %>%
+    select(id, CIlo, value, CIhi) %>%
+        add_row(id="intercept", value=mean(y), CIlo = mean(y), CIhi = mean(y)) %>%
+        arrange(desc(abs(value))) %>%
+    mutate(OR=round(exp(value),3), CIlo=round(exp(CIlo),3), CIhi=round(exp(CIhi),3), 
+           value=round(value,3)) %>%
+        select(id, value, OR, CIlo, CIhi)
+)
+```
