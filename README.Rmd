@@ -460,16 +460,3 @@ knitr::kable(full_model_catcatInter %>%
 )
 ```
 
-
-### All coefficients printed out
-
-```{r, echo=FALSE}
-knitr::kable(full_and_boot_coefs %>%
-    select(id, CIlo, value, CIhi) %>%
-        add_row(id="intercept", value=mean(y), CIlo = mean(y), CIhi = mean(y)) %>%
-        arrange(desc(abs(value))) %>%
-    mutate(OR=round(exp(value),3), CIlo=round(exp(CIlo),3), CIhi=round(exp(CIhi),3), 
-           value=round(value,3)) %>%
-        select(id, value, OR, CIlo, CIhi)
-)
-```
