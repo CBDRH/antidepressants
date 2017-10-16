@@ -2,7 +2,10 @@
 title: "Identifying patients using antidepressants for the treatment of depression"
 subtitle: "Supplementary documentation"
 author: Peter Straka
-output: html_notebook
+output: 
+    md_document:
+        variant: markdown_github
+    html_notebook: default
 ---
 
 ```{r, echo=FALSE}
@@ -70,6 +73,7 @@ x_1se <- log(lambdas[i_1se])
 
 meanOOBprediction <- apply(X = OOBpredictions, MARGIN = c(2,3), FUN = mean, na.rm=TRUE)
 library(pROC)
+library(plyr)
 ROCs <- alply(.data = meanOOBprediction, .margins = 2, .fun = function(X){
   p <- exp(X) / (1 + exp(X))
   roc(response = y, predictor = p, smooth = FALSE)$auc
@@ -453,4 +457,3 @@ knitr::kable(full_and_boot_coefs %>%
         select(id, value, OR, CIlo, CIhi)
 )
 ```
-
