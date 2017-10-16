@@ -41,7 +41,7 @@ See the file [all_coefs.md](all_coefs.md) or [all_coefs.csv](inst/extdata/all_co
 
 ### Reproduce analysis 
 
-View the `README.Rmd` file that produces the output below. 
+View the `README.Rmd` file that produces the output below. Note that the output below is derived from the synthetic data and 10 Bootstrap samples only, hence the signal is weaker accordingly. 
 
 ### Calculating AUC
 
