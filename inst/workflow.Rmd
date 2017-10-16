@@ -2,7 +2,10 @@
 title: "Identifying patients using antidepressants for the treatment of depression"
 subtitle: "Supplementary documentation"
 author: Peter Straka
-output: html_notebook
+output: 
+    md_document:
+        variant: markdown_github
+    html_notebook: default
 ---
 
 ```{r, echo=FALSE}
@@ -70,6 +73,7 @@ x_1se <- log(lambdas[i_1se])
 
 meanOOBprediction <- apply(X = OOBpredictions, MARGIN = c(2,3), FUN = mean, na.rm=TRUE)
 library(pROC)
+library(plyr)
 ROCs <- alply(.data = meanOOBprediction, .margins = 2, .fun = function(X){
   p <- exp(X) / (1 + exp(X))
   roc(response = y, predictor = p, smooth = FALSE)$auc
@@ -99,7 +103,6 @@ The best expected AUC is `r auc_plot_data$y[i_0]` and our choice within one stan
 
 
 ## Sensitivity and Specificity
-
 
 ```{r, include=FALSE}
 log_trans <- function(x) exp(x) / (1+exp(x))
@@ -141,7 +144,7 @@ sdPPV <- apply(PPV, c(1,3), sd)
 round(sdPPV[, i_1se], 3)
 ```
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, message=FALSE}
 library(tidyverse)
 knitr::kable(tibble(threshold=thresholds, gold=sum(y), positives=meanPOS[, i_1se], sens=meanSENS[,i_1se], spec=meanSPEC[,i_1se], ppv=meanPPV[,i_1se]) %>%
     mutate(positives=round(positives,1), sens=round(sens,3), spec=round(spec,3),
@@ -260,7 +263,7 @@ catcontInterTable <- ldply(all_coefs, function(model) model$catcontInterTable)
 ```
 
 
-## "Confidence" intervals for effects and interactions
+## Bootstrap Percentiles for effects and interactions
 
 
 ```{r, include=FALSE}
@@ -453,4 +456,3 @@ knitr::kable(full_and_boot_coefs %>%
         select(id, value, OR, CIlo, CIhi)
 )
 ```
-
