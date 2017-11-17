@@ -3,9 +3,9 @@ title: "Identifying patients using antidepressants for the treatment of depressi
 subtitle: "Supplementary documentation"
 author: Peter Straka
 output: 
+    html_notebook: default
     md_document:
         variant: markdown_github
-    html_notebook: default
 ---
 
 # Supplementary Information for the paper "Identifying patients using antidepressants for the treatment of depression"
@@ -36,7 +36,7 @@ bootglinternet(B = 10, nLambda = 20)
 
 ### All coefficients of the model fitted to the real dataset
 
-See the file [all_coefs.md](all_coefs.md) or [all_coefs.csv](inst/extdata/all_coefs.csv)
+See the file [all_coefs.md](inst/extdata/all_coefs.md) or [all_coefs.csv](inst/extdata/all_coefs.csv)
 
 
 ### Reproduce analysis 
