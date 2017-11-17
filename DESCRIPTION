@@ -1,0 +1,20 @@
+Package: antidepressants
+Type: Package
+Title: Supplementary Information for the Paper "Identifying patients using antidepressants for the treatment of depression"
+Version: 0.1.0
+Author: Peter Straka
+Maintainer: The package maintainer <p.straka@unsw.edu.au>
+Description: Explains the analysis in the paper in detail
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+Imports:
+    glinternet,
+    doParallel,
+    foreach,
+    parallel,
+    plyr
+Suggests: knitr,
+    rmarkdown
+VignetteBuilder: knitr
+RoxygenNote: 6.0.1
