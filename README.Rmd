@@ -3,9 +3,9 @@ title: "Identifying patients using antidepressants for the treatment of depressi
 subtitle: "Supplementary documentation"
 author: Peter Straka
 output: 
-    html_notebook: default
     md_document:
         variant: markdown_github
+    html_notebook: default
 ---
 
 # Supplementary Information for the paper "Identifying patients using antidepressants for the treatment of depression"
