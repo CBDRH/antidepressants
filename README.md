@@ -25,7 +25,7 @@ bootglinternet(B = 10, nLambda = 20)
 
 ### All coefficients of the model fitted to the real dataset
 
-See the file [all\_coefs.md](all_coefs.md) or [all\_coefs.csv](inst/extdata/all_coefs.csv)
+See the file [all\_coefs.md](inst/extdata/all_coefs.md) or [all\_coefs.csv](inst/extdata/all_coefs.csv)
 
 ### Reproduce analysis
 
