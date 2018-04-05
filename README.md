@@ -7,7 +7,7 @@ This R package contains similar (synthetic) data to the dataset used in the pape
 
 ``` r
 install.packages('devtools')
-devtools::install_github("strakaps/antidepressants")
+devtools::install_github("CBDRH/antidepressants")
 ```
 
 ### Load synthetic data
